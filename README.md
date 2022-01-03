@@ -43,6 +43,9 @@ As well as custom responses to the follow phrases:
 
 ## Change log
 
+1.1.2 - 1/3/2022
+* Only updates userdata and serverdata every 30 mins provided there is change to improve efficiency.
+
 1.1.1 - 8/29/2021
 * Now prompts user if they want to delete keyword for real.
 * Adjusted ~keywords spacing
