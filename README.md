@@ -32,7 +32,7 @@ BasedBot has the following commands
   * `delete`
   * `reset`
   
-* `top` (keyword)
+* `top` [keyword]
 * `help`
 
 As well as custom responses to the follow phrases:
