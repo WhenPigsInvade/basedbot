@@ -11,6 +11,8 @@ Discord Bot which keeps track of frequently said words and displays leaderboard.
 BasedBot's main feature is keeping track of how many times a user says a certain phrase in a leaderboard. 
 BasedBot can also reply to certain phrases or keywords with unique responses.
 
+Our team plans to include a database overhaul soon, as well as including time stamps for leaderboard reset.
+
 
 ## Installation
 Use this [link](https://discord.com/oauth2/authorize?client_id=851869159121616960&scope=bot&permissions=66186303) to add BasedBot to your server
