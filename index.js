@@ -11,16 +11,11 @@
 const version = '1.1.2';
 
 const Discord = require('discord.js');
-const client = new Discord.Client
-const token = "";
+const client = new Discord.Client();
+//const token = ''; //For BasedBot
+const token = ''; //For BasedBotBeta
 const PREFIX = '&';
 const fs = require('fs');
-
-fs.readFile('token.txt', (err, data) => {
-    if (err) throw err;
-  
-    token = data.toString();
-})
 
 
 
@@ -237,4 +232,3 @@ client.on('message', message => {
         }
     }
 })
-
