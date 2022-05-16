@@ -9,18 +9,47 @@
 
 //Client Version:
 const version = '1.1.2';
+const basedBotBeta = false;
 
 const Discord = require('discord.js');
-const client = new Discord.Client
-const token = "";
-const PREFIX = '&';
+const client = new Discord.Client();
+var token_file = "token.txt";
+var PREFIX = '~';
+
+
+if(basedBotBeta){
+    token_file = "token_beta.txt";
+    PREFIX = '&';
+}
+
 const fs = require('fs');
 
-fs.readFile('token.txt', (err, data) => {
-    if (err) throw err;
-  
-    token = data.toString();
-})
+function fetchToken(){
+
+    fs.readFile('token.txt', (err, data) => {
+        if (err) throw err;
+    
+        console.log("token: " + data.toString());
+        //const token = data.toString();
+
+        return new Promise((resolve ,reject)=>{
+            setTimeout(
+                ()=>{
+                    // console.log("Inside the promise");
+                    if(resolvedFlag==true){
+                        resolve(data.toString());
+                    }else{
+                        reject("Rejected")
+                    }     
+                } , 2000
+            );
+        });
+    })
+
+    
+
+}
+
 
 
 
@@ -80,7 +109,15 @@ for(const file of keywordFiles){
 }
 
 
-client.login(token);
+async function run(){
+    await fetchToken();
+    client.login(token)
+}
+
+// fetchToken().then((res)=>{
+//     client.login(token)
+// })
+// .catch(err);
 
 var changed = false;
 
@@ -94,6 +131,7 @@ client.on('ready',() => {
         `~help for more info!`,
         `~log for changes!`,
         `over ${client.guilds.cache.size} servers!`,
+		`improved databases coming soon!`,
         `current version ${version}`
     ];
 
