@@ -15,8 +15,6 @@ Our team plans to include a database overhaul soon, as well as including time st
 
 
 ## Installation
-Use this [link](https://discord.com/oauth2/authorize?client_id=851869159121616960&scope=bot&permissions=66186303) to add BasedBot to your server
-
 If you want to run BasedBot on your own server you will have to install the following:
 
 * [Node](https://nodejs.org)
