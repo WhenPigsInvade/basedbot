@@ -18,8 +18,7 @@ Our team plans to include a database overhaul soon, as well as including time st
 If you want to run BasedBot on your own server you will have to install the following:
 
 * [Node](https://nodejs.org)
-
-DiscordJS should be included if you clone the entire repository.
+* [DiscordJS](https://discord.js.org/#/)
 
 ## Configurations
 
