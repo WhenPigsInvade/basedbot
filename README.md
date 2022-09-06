@@ -1,4 +1,4 @@
-# BasedBot
+# BasedBot -- NEW Python Rewrite!
 Discord Bot which keeps track of frequently said words and displays leaderboard.
 
 ## Table of Contents
