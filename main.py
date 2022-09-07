@@ -86,6 +86,7 @@ async def fetch_columns(message):
 # Checks if guild exists in database, then checks if user exists.
 async def exists(message):
     #Checks if guild exists in database or not, adds if necessary
+    # Might be sqlite_schema or sqlite_master depending on sqlite version / platform
     if cursor.execute(f"""SELECT EXISTS (SELECT name FROM sqlite_schema WHERE type='table' AND name='guild_{message.guild.id}');""").fetchall() == [(0,)]:
         print("Guild table not found, creating")
         cursor.execute(f"""CREATE TABLE guild_{message.guild.id} (uid INTEGER PRIMARY KEY);""")
@@ -131,17 +132,19 @@ async def fetch_leaderboard(message, arg):
 
 @bot.command(name = 'keywords')
 async def fetch_keywords(message):
-    keywords = fetch_columns(message)[1:]
+    keywords = (await fetch_columns(message))[1:]
 
     if keywords == []:
         message.channel.send("No keywords are being tracked on this server right now.")
         return
 
     # Create embed
-    embed=discord.Embed(title=f"List of currently tracked Keywords", description=f"Requested by {message.author.display_name}", color=discord.Color.red())
+    embed=discord.Embed(title=f"List of currently tracked keywords", description=f"Requested by {message.author.display_name}", color=discord.Color.red())
 
     for word in keywords:
-        embed.add_field(name=f"", value=f"word", inline=False)
+        embed.add_field(name = f"{word}", value=f"\u200b", inline=False)
+    
+    await message.channel.send(embed=embed)
 
 @bot.event
 async def on_message(message):
