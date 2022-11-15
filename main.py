@@ -4,17 +4,20 @@
 import urllib.request
 import discord
 from discord.ext import commands
+import random
 import sqlite3
+import time
 
-bot = commands.Bot(command_prefix='$')
+bot = commands.Bot(command_prefix=commands.when_mentioned_or('$'), intents=discord.Intents.all())
 conn = sqlite3.connect("userdata.db")
 cursor = conn.cursor()
 
-
+with open('quotes.txt') as f:
+    quotes = [line.rstrip() for line in f]
 
 @bot.event
 async def on_ready():
-    await bot.change_presence(status=discord.Status.online, activity=discord.Game("F in chat for BasedBot 1.0"))
+    await bot.change_presence(status=discord.Status.online, activity=discord.Game("You can now mention me to use commands!"))
     print('bot online')
     print(bot.user.name)
 
@@ -101,6 +104,10 @@ async def exists(message):
 @bot.command(name = 'top')
 async def fetch_leaderboard(message, arg):
 
+    if arg is None:
+        await message.channel.send("Invalid parameter.")
+        return
+
     # Checks keyword is being tracked
     if arg not in await fetch_columns(message):
         await message.channel.send("Keyword is not tracked right now.")
@@ -124,7 +131,7 @@ async def fetch_leaderboard(message, arg):
             # print(str(usr[0]) + " " + str(usr[1]))
             embed.add_field(name=f"{(await bot.fetch_user(usr[0])).display_name}", value=f"{usr[1]}", inline=False)
     
-    embed.set_footer(text="Why are there no line breaks in Discord embeds?")
+    embed.set_footer(text=f"{random.choice(quotes)}")
 
     # embed.set_author(name=message.author.display_name, icon_url="https://i.imgur.com/4N9vIOM.jpeg")
 
@@ -144,7 +151,35 @@ async def fetch_keywords(message):
     for word in keywords:
         embed.add_field(name = f"{word}", value=f"\u200b", inline=False)
     
+    embed.set_footer(text=f"{random.choice(quotes)}")
+
     await message.channel.send(embed=embed)
+
+bot.remove_command("help")
+
+@bot.command(name="help")
+async def show_commands(message):
+    # Create embed
+    embed=discord.Embed(title="Commands", description=f"List of commands \nRequested by {message.author.display_name}", color=discord.Color.red())
+
+
+    embed.add_field(name = f"keywords\ntop [word]\nremove\nadd\nlog", value=f"\u200b", inline=False)
+    
+    embed.set_footer(text=f"{random.choice(quotes)}")
+
+    # embed.set_author(name=message.author.display_name, icon_url="https://i.imgur.com/4N9vIOM.jpeg")
+
+    await message.send(embed=embed)
+
+@bot.command()
+async def log(message):
+    response = [
+        "Ok, I'm in.", 
+        "Nope. My log is too big :/"
+    ]
+    await message.send("Fitting my log in your ass")
+    time.sleep(3)
+    await message.send({random.choice(response)})
 
 @bot.event
 async def on_message(message):
@@ -175,6 +210,14 @@ async def on_message(message):
             cursor.execute(increment_value)
             conn.commit() # Commit once after every increment otherwise rollback will affect all previous incrementations.
         
+    if message.content.__contains__("@everyone"):
+        name = ["dipshit", "dumbass", "asshat"]
+        await message.reply(f"Hey {random.choice(name)} we're trying to sleep over here.")    
+
+    elif message.content.__contains__("brb"):
+        await message.send("brb, on my way to fuck your mother.")
+
+
     await bot.process_commands(message)
 
 
