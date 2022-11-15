@@ -214,8 +214,8 @@ async def on_message(message):
         name = ["dipshit", "dumbass", "asshat"]
         await message.reply(f"Hey {random.choice(name)} we're trying to sleep over here.")    
 
-    elif message.content.__contains__("brb"):
-        await message.send("brb, on my way to fuck your mother.")
+    elif message.content.lower().__contains__("brb"):
+        await message.channel.send("brb, on my way to fuck your mother.")
 
 
     await bot.process_commands(message)
