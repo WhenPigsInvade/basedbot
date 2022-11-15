@@ -179,7 +179,7 @@ async def log(message):
     ]
     await message.send("Fitting my log in your ass")
     time.sleep(3)
-    await message.send({random.choice(response)})
+    await message.send(random.choice(response))
 
 @bot.event
 async def on_message(message):
