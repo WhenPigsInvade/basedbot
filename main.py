@@ -99,6 +99,7 @@ async def exists(message):
         print("User not found in guild table. Adding to database")
         cursor.execute(f"""INSERT INTO guild_{message.guild.id} (uid) VALUES ({message.author.id});""")
 
+    conn.commit()
     return
 
 @bot.command(name = 'top')
