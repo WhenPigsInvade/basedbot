@@ -41,6 +41,8 @@ As well as custom responses to the follow phrases:
 * (or when mentioned)
 
 ## Change log
+2.0.0 - 9/6/2022
+* Bot was rewritten in Python. Now also implements SQLlite for database efficiency.
 
 1.1.2 - 1/3/2022
 * Only updates userdata and serverdata every 30 mins provided there is change to improve efficiency.
