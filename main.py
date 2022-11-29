@@ -7,6 +7,12 @@ from discord.ext import commands
 import random
 import sqlite3
 import time
+import os
+
+# For some reason master sqlite table is sqlite_master on Linux
+master_table = sqlite_schema
+if os.name == "posix":
+    master_Table = sqlite_master
 
 bot = commands.Bot(command_prefix=commands.when_mentioned_or('$'), intents=discord.Intents.all())
 conn = sqlite3.connect("userdata.db")
@@ -90,7 +96,7 @@ async def fetch_columns(message):
 async def exists(message):
     #Checks if guild exists in database or not, adds if necessary
     # Might be sqlite_schema or sqlite_master depending on sqlite version / platform
-    if cursor.execute(f"""SELECT EXISTS (SELECT name FROM sqlite_schema WHERE type='table' AND name='guild_{message.guild.id}');""").fetchall() == [(0,)]:
+    if cursor.execute(f"""SELECT EXISTS (SELECT name FROM {master_table} WHERE type='table' AND name='guild_{message.guild.id}');""").fetchall() == [(0,)]:
         print("Guild table not found, creating")
         cursor.execute(f"""CREATE TABLE guild_{message.guild.id} (uid INTEGER PRIMARY KEY);""")
 
