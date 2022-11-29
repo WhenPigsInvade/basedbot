@@ -27,7 +27,7 @@ BasedBot has the following commands
 * `keywords`
   * `add`
   * `delete`
-  * `reset`
+  * `reset` --TODO
   
 * `top` [keyword]
 * `help`
@@ -37,8 +37,8 @@ As well as custom responses to the follow phrases:
 * brb
 * f
 * @everyone
-* (common mispellings of the word "Elliott")
-* (or when mentioned)
+* (common mispellings of the word "Elliott") -- TODO
+* (or when mentioned) -- TODO
 
 ## Change log
 2.0.1 - Soon
