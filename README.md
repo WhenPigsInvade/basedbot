@@ -19,7 +19,7 @@ If you want to run BasedBot on your own server you will have to install the foll
 
 * [Python 3.x](https://nodejs.org)
 * [Discord.py](https://discord.js.org/#/)
-* [asyncio] (https://docs.python.org/3/library/asyncio.html)
+* [asyncio](https://docs.python.org/3/library/asyncio.html)
 
 or use `pip install requirements.txt` to install all required libraries
 
