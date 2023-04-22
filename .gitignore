@@ -130,3 +130,6 @@ dmypy.json
 
 # Discord.py token
 token.txt
+
+# Test files
+test.py
