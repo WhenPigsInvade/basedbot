@@ -1,18 +1,22 @@
 # TODO add placeholders to avoid SQL Injections in add()
 # TODO merge fetch_column(message) command with column_exists(message, arg) --- So it returns simple true or false
 # TODO split functions up into individual modules
-import urllib.request
+import urllib.request # Depreciated
 import discord
 from discord.ext import commands
-import random
-import sqlite3
+import random # random quote selection
+import sqlite3 # for database
 import time
 import os
+import asyncio
+
+# Import basedbot modules
+import responses
 
 # For some reason master sqlite table is sqlite_master on Linux
-master_table = sqlite_schema
+master_table = "sqlite_schema"
 if os.name == "posix":
-    master_Table = sqlite_master
+    master_table = "sqlite_master"
 
 bot = commands.Bot(command_prefix=commands.when_mentioned_or('$'), intents=discord.Intents.all())
 conn = sqlite3.connect("userdata.db")
@@ -162,8 +166,8 @@ async def fetch_keywords(message):
 
     await message.channel.send(embed=embed)
 
-bot.remove_command("help")
-
+bot.remove_command("help") # NEED THIS LINE: There is already a built in "help" command
+# to bots for some reason. Need to remove it for our custom one to work
 @bot.command(name="help")
 async def show_commands(message):
     # Create embed
@@ -185,8 +189,10 @@ async def log(message):
         "Nope. My log is too big :/"
     ]
     await message.send("Fitting my log in your ass")
-    time.sleep(3)
+    await asyncio.sleep(3)
     await message.send(random.choice(response))
+  
+
 
 @bot.event
 async def on_message(message):
@@ -211,20 +217,10 @@ async def on_message(message):
     val = dict(zip(words, values))
 
     # Checks of each keyword being logged is present inside sent message.
-    for word in words:
-        if message.content.__contains__(word):
-            increment_value = f"""UPDATE guild_{message.guild.id} SET {word} = {val[word] + 1} WHERE uid = {message.author.id};"""
-            cursor.execute(increment_value)
-            conn.commit() # Commit once after every increment otherwise rollback will affect all previous incrementations.
-        
-    if message.content.__contains__("@everyone"):
-        name = ["dipshit", "dumbass", "asshat"]
-        await message.reply(f"Hey {random.choice(name)} we're trying to sleep over here.")    
+    # Responses for additional keyphrases, i.e. brb
+    await responses.respond(message, words)
 
-    elif message.content.lower().__contains__("brb"):
-        await message.channel.send("brb, on my way to fuck your mother.")
-
-
+    # Required to keep the bot running after on_message()
     await bot.process_commands(message)
 
 

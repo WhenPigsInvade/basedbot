@@ -1,4 +1,4 @@
-# BasedBot -- NEW Python Rewrite!
+# BasedBot -- written in Python
 Discord Bot which keeps track of frequently said words and displays leaderboard.
 
 ## Table of Contents
@@ -19,6 +19,9 @@ If you want to run BasedBot on your own server you will have to install the foll
 
 * [Python 3.x](https://nodejs.org)
 * [Discord.py](https://discord.js.org/#/)
+* [asyncio] (https://docs.python.org/3/library/asyncio.html)
+
+or use `pip install requirements.txt` to install all required libraries
 
 ## Configurations
 
@@ -31,19 +34,21 @@ BasedBot has the following commands
   
 * `top` [keyword]
 * `help`
+* `log`
 
 As well as custom responses to the follow phrases:
 
 * brb
 * f
 * @everyone
+* (or when mentioned)
 * (common mispellings of the word "Elliott") -- TODO
-* (or when mentioned) -- TODO
 
 ## Change log
-2.0.1 - Soon
+2.0.1 - 4/22/2023
 * Added most missing cosmetic features from 1.x.x
 * Now has randomized quotes after embed blocks
+* Now utilizes asyncio for its delayed response to prevent back logging
 
 2.0.0 - 9/6/2022
 * Bot was rewritten in Python. Now also implements SQLlite for database efficiency.
