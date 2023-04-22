@@ -133,3 +133,6 @@ token.txt
 
 # Test files
 test.py
+
+# userdata
+userdata.db
