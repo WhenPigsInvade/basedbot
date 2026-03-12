@@ -1,230 +1,222 @@
-# TODO add placeholders to avoid SQL Injections in add()
-# TODO merge fetch_column(message) command with column_exists(message, arg) --- So it returns simple true or false
-# TODO split functions up into individual modules
-import urllib.request # Depreciated
 import discord
 from discord.ext import commands
-import random # random quote selection
-import sqlite3 # for database
-import time
+import random
+import sqlite3
 import os
 import asyncio
-
-# Import basedbot modules
+import re
 import responses
 
-# For some reason master sqlite table is sqlite_master on Linux
-master_table = "sqlite_schema"
-if os.name == "posix":
-    master_table = "sqlite_master"
+# --- Setup & Database ---
+intents = discord.Intents.all()
+intents.message_content = True  # Required for v2.0+ prefix commands
 
-bot = commands.Bot(command_prefix=commands.when_mentioned_or('$'), intents=discord.Intents.all())
+bot = commands.Bot(command_prefix=commands.when_mentioned_or('$'), intents=intents)
+bot.help_command = None  # Modern way to disable default help
+
 conn = sqlite3.connect("userdata.db")
 cursor = conn.cursor()
+
+# OS-specific master table name
+master_table = "sqlite_master" if os.name == "posix" else "sqlite_schema"
 
 with open('quotes.txt') as f:
     quotes = [line.rstrip() for line in f]
 
+def clean_name(name):
+    """Helper to prevent SQL injection on table/column names."""
+    return re.sub(r'\W+', '', name)
+
+# --- Helper Functions ---
+
+async def get_columns(guild_id):
+    """Returns a list of tracked column names for a specific guild."""
+    safe_table = f"guild_{guild_id}"
+    cursor.execute(f"PRAGMA table_info({safe_table});")
+    return [item[1] for item in cursor.fetchall()]
+
+async def ensure_exists(ctx):
+    """Ensures the guild table and the user row exist."""
+    table_name = f"guild_{ctx.guild.id}"
+    
+    # Check for table
+    cursor.execute(f"SELECT name FROM {master_table} WHERE type='table' AND name=?", (table_name,))
+    if not cursor.fetchone():
+        cursor.execute(f"CREATE TABLE {table_name} (uid INTEGER PRIMARY KEY);")
+
+    # Check for user
+    cursor.execute(f"SELECT uid FROM {table_name} WHERE uid=?", (ctx.author.id,))
+    if not cursor.fetchone():
+        cursor.execute(f"INSERT INTO {table_name} (uid) VALUES (?)", (ctx.author.id,))
+    
+    conn.commit()
+
+# --- Commands ---
+
 @bot.event
 async def on_ready():
-    await bot.change_presence(status=discord.Status.online, activity=discord.Game("You can now mention me to use commands!"))
-    print('bot online')
-    print(bot.user.name)
+    activity = discord.Game("Mention me or use $")
+    await bot.change_presence(status=discord.Status.online, activity=activity)
+    print(f'Logged in as {bot.user.name} (ID: {bot.user.id})')
 
 @bot.command()
-async def add(message, arg):
+async def add(ctx, keyword: str = None):
+    if not keyword:
+        return await ctx.send("Please provide a keyword to add.")
 
-    if(arg is None):
-        await message.channel.send("Invalid argument")
-        return
-
-    if(arg in await fetch_columns(message)):
-        await message.channel.send("Keyword is already being logged.")
-        return
+    keyword = clean_name(keyword)
+    await ensure_exists(ctx)
+    
+    columns = await get_columns(ctx.guild.id)
+    if keyword in columns:
+        return await ctx.send(f"'{keyword}' is already being logged.")
 
     try:
-        # Make sure guild is in database.
-        await exists(message)
-
-        # REMINDER: use placeholders to avoid SQL injections!!! https://docs.python.org/3/library/sqlite3.html
-        alter_query = f"""ALTER TABLE guild_{message.guild.id} ADD COLUMN {arg} NOT NULL DEFAULT 0;"""
-
-
-        await message.channel.send(f"{arg} is now logged on this server.")
-        cursor.execute(alter_query)
+        # Note: Column names can't be parameterized with ?, so we use our cleaner
+        cursor.execute(f'ALTER TABLE guild_{ctx.guild.id} ADD COLUMN "{keyword}" INTEGER NOT NULL DEFAULT 0;')        
         conn.commit()
-    
-    except:
-        await message.channel.send("Error. Please try again.")
+        await ctx.send(f"**{keyword}** is now being logged on this server.")
+    except Exception as e:
+        print(f"Error adding column: {e}")
+        await ctx.send("An error occurred. Make sure the keyword is valid.")
 
 @bot.command()
-async def remove(message, arg):
+async def remove(ctx, keyword: str = None):
+    if not keyword or keyword.lower() == "uid":
+        return await ctx.send("Invalid argument.")
 
-    # Don't let the user drop the uid column!
-    if(arg is None or arg == "uid"):
-        await message.channel.send("Invalid argument")
-        return
+    keyword = clean_name(keyword)
+    columns = await get_columns(ctx.guild.id)
 
-    if(arg not in await fetch_columns(message)):
-        await message.channel.send("Keyword is not being logged.")
-        return
+    if keyword not in columns:
+        return await ctx.send("That keyword is not being logged.")
 
     try:
-        # Make sure guild is in database.
-        await exists(message)
-
-        # REMINDER: use placeholders to avoid SQL injections!!! https://docs.python.org/3/library/sqlite3.html
-        alter_query = f"""ALTER TABLE guild_{message.guild.id} DROP COLUMN {arg};"""
-
-
-        await message.channel.send(f"{arg} is no longer logged on this server.")
-        cursor.execute(alter_query)
+        cursor.execute(f"ALTER TABLE guild_{ctx.guild.id} DROP COLUMN {keyword};")
         conn.commit()
+        await ctx.send(f"Stopped logging **{keyword}**.")
+    except Exception as e:
+        print(f"Error dropping column: {e}")
+        await ctx.send("Failed to remove keyword.")
+
+@bot.command(name='top')
+async def fetch_leaderboard(ctx, keyword: str = None):
+    if not keyword:
+        return await ctx.send("Please specify a keyword (e.g., `$top 67`).")
+
+    keyword = clean_name(keyword)
+    columns = await get_columns(ctx.guild.id)
+
+    if keyword not in columns:
+        return await ctx.send("That keyword is not tracked.")
+
+    table = f"guild_{ctx.guild.id}"
     
-    except:
-        await message.channel.send("Error. Please try again.")
-
-# Grabs the list of words being tracked
-async def fetch_columns(message):
-    fetch_columns = f"""PRAGMA table_info(guild_{message.guild.id});"""
+    # WRAP KEYWORD IN DOUBLE QUOTES HERE:
+    query = f'SELECT uid, "{keyword}" FROM {table} WHERE "{keyword}" > 0 ORDER BY "{keyword}" DESC LIMIT 10'
     
-    cursor.execute(fetch_columns)
-    columns = []
-    for item in cursor.fetchall():
-        columns.append(item[1])
+    try:
+        cursor.execute(query)
+        toppers = cursor.fetchall()
 
-    return columns
+        embed = discord.Embed(
+            title=f"Leaderboard: {keyword}", 
+            description=f"Top usage in this server", 
+            color=discord.Color.red()
+        )
 
-# TODO merge command with column_exists(message, arg)
-# Checks if guild exists in database, then checks if user exists.
-async def exists(message):
-    #Checks if guild exists in database or not, adds if necessary
-    # Might be sqlite_schema or sqlite_master depending on sqlite version / platform
-    if cursor.execute(f"""SELECT EXISTS (SELECT name FROM {master_table} WHERE type='table' AND name='guild_{message.guild.id}');""").fetchall() == [(0,)]:
-        print("Guild table not found, creating")
-        cursor.execute(f"""CREATE TABLE guild_{message.guild.id} (uid INTEGER PRIMARY KEY);""")
+        for uid, count in toppers:
+            # Using get_user first is faster; fetch_user makes an API call
+            user = bot.get_user(uid) or await bot.fetch_user(uid)
+            name = user.display_name if user else f"User {uid}"
+            embed.add_field(name=name, value=str(count), inline=False)
+        
+        embed.set_footer(text=random.choice(quotes))
+        await ctx.send(embed=embed)
+    except Exception as e:
+        print(f"Error fetching leaderboard: {e}")
+        await ctx.send("An error occurred while fetching the leaderboard.")
 
-    #Check if user is in database, adds if necessary
-    if cursor.execute(f"""SELECT EXISTS (SELECT uid FROM guild_{message.guild.id} WHERE uid='{message.author.id}');""").fetchall() == [(0,)]:
-        print("User not found in guild table. Adding to database")
-        cursor.execute(f"""INSERT INTO guild_{message.guild.id} (uid) VALUES ({message.author.id});""")
+@bot.command()
+async def keywords(ctx):
+    all_cols = await get_columns(ctx.guild.id)
+    tracked = all_cols[1:] # Skip 'uid'
 
-    conn.commit()
-    return
+    if not tracked:
+        return await ctx.send("No keywords are being tracked yet.")
 
-@bot.command(name = 'top')
-async def fetch_leaderboard(message, arg):
+    embed = discord.Embed(title="Tracked Keywords", color=discord.Color.red())
+    embed.description = "\n".join([f"• {word}" for word in tracked])
+    embed.set_footer(text=random.choice(quotes))
+    await ctx.send(embed=embed)
 
-    if arg is None:
-        await message.channel.send("Invalid parameter.")
-        return
-
-    # Checks keyword is being tracked
-    if arg not in await fetch_columns(message):
-        await message.channel.send("Keyword is not tracked right now.")
-        return
-
-    # Fetch list of top performers
-    toppers = cursor.execute(f"""SELECT uid, {arg} FROM guild_{message.guild.id} ORDER BY {arg} DESC""").fetchall()
-
-    # Only show top 10
-    if toppers.__len__() > 10:
-        toppers = toppers[:10]
-
-    # Create embed
-    embed=discord.Embed(title=f"{arg}", description=f"Top usage of {arg} \nRequested by {message.author.display_name}", color=discord.Color.red())
-
-    # Add line breaker
-    # embed.add_field(name = chr(173), value = chr(173), inline=False)
-
-    for usr in toppers:
-        if usr[1] != 0:
-            # print(str(usr[0]) + " " + str(usr[1]))
-            embed.add_field(name=f"{(await bot.fetch_user(usr[0])).display_name}", value=f"{usr[1]}", inline=False)
-    
-    embed.set_footer(text=f"{random.choice(quotes)}")
-
-    # embed.set_author(name=message.author.display_name, icon_url="https://i.imgur.com/4N9vIOM.jpeg")
-
-    await message.send(embed=embed)
-
-@bot.command(name = 'keywords')
-async def fetch_keywords(message):
-    keywords = (await fetch_columns(message))[1:]
-
-    if keywords == []:
-        message.channel.send("No keywords are being tracked on this server right now.")
-        return
-
-    # Create embed
-    embed=discord.Embed(title=f"List of currently tracked keywords", description=f"Requested by {message.author.display_name}", color=discord.Color.red())
-
-    for word in keywords:
-        embed.add_field(name = f"{word}", value=f"\u200b", inline=False)
-    
-    embed.set_footer(text=f"{random.choice(quotes)}")
-
-    await message.channel.send(embed=embed)
-
-bot.remove_command("help") # NEED THIS LINE: There is already a built in "help" command
-# to bots for some reason. Need to remove it for our custom one to work
 @bot.command(name="help")
-async def show_commands(message):
-    # Create embed
-    embed=discord.Embed(title="Commands", description=f"List of commands \nRequested by {message.author.display_name}", color=discord.Color.red())
-
-
-    embed.add_field(name = f"keywords\ntop [word]\nremove\nadd\nlog", value=f"\u200b", inline=False)
-    
-    embed.set_footer(text=f"{random.choice(quotes)}")
-
-    # embed.set_author(name=message.author.display_name, icon_url="https://i.imgur.com/4N9vIOM.jpeg")
-
-    await message.send(embed=embed)
+async def show_help(ctx):
+    if random.random() > .80:
+        embed = discord.Embed(title="Bot Commands", color=discord.Color.red())
+        embed.add_field(
+            name="Available Commands", 
+            value="`add [word]` - Start tracking a word\n`remove [word]` - Stop tracking\n`keywords` - Show tracked words\n`top [word]` - Leaderboard\n`log` - Fun command", 
+            inline=False
+        )
+        embed.set_footer(text=random.choice(quotes))
+        await ctx.send(embed=embed)
+    else:
+        await ctx.send("Yup, you need help for sure...")
 
 @bot.command()
-async def log(message):
-    response = [
-        "Ok, I'm in.", 
-        "Nope. My log is too big :/"
-    ]
-    await message.send("Fitting my log in your ass")
-    await asyncio.sleep(3)
-    await message.send(random.choice(response))
-  
-
+async def log(ctx):
+    responses_list = ["Ok, I'm in.", "Nope. My log is too big :/"]
+    await ctx.send("Checking the log...")
+    await asyncio.sleep(2)
+    await ctx.send(random.choice(responses_list))
 
 @bot.event
 async def on_message(message):
-
-    # If user is bot
-    if message.author.bot:
+    # 1. Ignore bots and DMs
+    if message.author.bot or not message.guild:
         return
 
+    # 2. Ensure user and guild exist in DB before we try to update them
+    # We use the helper function from earlier
+    await ensure_exists(ctx=await bot.get_context(message))
 
-    await exists(message)
-        
+    # 3. Get the list of tracked keywords for this server
+    tracked_words = await get_columns(message.guild.id)
+    # Remove 'uid' from the list so we only check keywords
+    keywords = [word for word in tracked_words if word != 'uid']
 
-    #Grab the list of words being tracked.
-    words = await fetch_columns(message)
-    words = words[1:] # Trims out uid
+    # 4. Count occurrences of each keyword in the message
+    # We use case-insensitive matching here
+    content_lower = message.content.lower()
+    
+    updates = []
+    for word in keywords:
+        # Count how many times the keyword appears
+        # .count() is simple; for complex regex matching, you'd use re.findall
+        count = content_lower.count(word.lower())
+        if count > 0:
+            updates.append((word, count))
 
-    # Fetches keyword count for current user
-    fetch_value = f"""SELECT * FROM guild_{message.guild.id} WHERE uid = {message.author.id};"""
-    values = cursor.execute(fetch_value).fetchone()
-    values = values[1:] # Trims out uid
+    # 5. Update the database if keywords were found
+    if updates:
+        table_name = f"guild_{message.guild.id}"
+        for word, amount in updates:
+            # We use double quotes around {word} again for numeric/reserved keywords
+            query = f'UPDATE {table_name} SET "{word}" = "{word}" + ? WHERE uid = ?'
+            cursor.execute(query, (amount, message.author.id))
+        conn.commit()
 
-    val = dict(zip(words, values))
+    # 6. Run additional response logic from your external module
+    # Note: passing keywords list as requested in your original code
+    if hasattr(responses, 'respond'):
+        await responses.respond(message, keywords)
 
-    # Checks of each keyword being logged is present inside sent message.
-    # Responses for additional keyphrases, i.e. brb
-    await responses.respond(message, words)
-
-    # Required to keep the bot running after on_message()
+    # 7. CRITICAL: Process commands
+    # Without this, $top, $add, etc., will stop working
     await bot.process_commands(message)
 
-
-# Runs the bot with the bot token from token.txt
+# Run
 with open("token.txt", "r") as file:
-    token = file.read().splitlines()[0].strip()
+    token = file.read().strip()
 bot.run(token)
